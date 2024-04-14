@@ -3,10 +3,10 @@
 ; 1E2023: Programacion de Microcontroladores
 ; main.c
 ; Autor: Jacob Tabush
-; Proyecto: Laboratorio 4
+; Proyecto: Poslaboratorio 4
 ; Hardware: ATMEGA328P
-; Creado: 10/04/2024
-; Ultima modificacion: 10/04/2024
+; Creado: 13/04/2024
+; Ultima modificacion: 13/04/2024
 *******************************************************************************/
 
 #define F_CPU 16000000
@@ -17,15 +17,15 @@
 
 void initADC(void);
 char changesomebits(char oldvalue, char bitstochange, char newvalue);
- 
-    // Definimos el tiempo que utilizaremos para reiniciar el timer0
+
+// Definimos el tiempo que utilizaremos para reiniciar el timer0
 const char timer0restart = 245;
-	//definimos la tabla de display de 7 segmentos
+//definimos la tabla de display de 7 segmentos
 const char tabla7seg[] = {0x40, 0x79, 0x24, 0x30, 0x19, 0x12, 0x02, 0x78, 0x00, 0x18, 0x08, 0x03, 0x27, 0x21, 0x06, 0x0E};
 char ADCResult = 0;
 char decenas = 0;
 char unidades = 0;
-char mux = 0; // Corr 
+char mux = 0; // Corr
 char counter = 0;
 char debouncetimer = 0;
 
@@ -33,10 +33,10 @@ void setup(void)
 {
 	cli();
 
-	DDRB = 0b00000111; //Colocamos a B0-2 como salidas, B3y4 como entrads
+	DDRB = 0b00100111; //Colocamos a B0-2 como salidas, B3y4 como entrads
 	PORTB = 0b00011000; //Habilitamos pullups en 3 y 4
 	
-	PCICR = 0x01; 
+	PCICR = 0x01;
 	PCMSK0 = 0b00011000; // Habilitamos pin interrupt en PB3 y PB4
 	
 	DDRD = 0xFF; //Colocamos a todo D como salidas
@@ -67,7 +67,7 @@ int main(void)
 
 void initADC(void) //Funcion para inicializar el ADC
 {
-	ADMUX = 0; 
+	ADMUX = 0;
 	
 	ADMUX |= (1<<REFS0); //conectamos a AVcc
 	ADMUX &= ~(1<<REFS1);
@@ -86,7 +86,11 @@ ISR(ADC_vect){
 	ADCSRA |= (1<<ADIF);
 	
 	unidades = (ADCResult & 0x0F); // grabamos los valores de unidades y decenas en sus lugares respectivos
-	decenas = (ADCResult >> 4); 
+	decenas = (ADCResult >> 4);
+	
+	//Usamos este if else para encender y apagar el alarma en PB6
+	if (ADCResult > counter) {PORTB = changesomebits(PORTB, 0b00100000, 0xF0);} 
+		else {PORTB = changesomebits(PORTB, 0b00100000, 0x00);}
 	
 	return;
 	
@@ -117,19 +121,19 @@ ISR(TIMER0_OVF_vect){
 	mux++; //cambiamos el mux
 	mux %= 3; //aseguramos que no pasa 3
 	
-	if (mux == 0x00) 
+	if (mux == 0x00)
 	{PORTD = tabla7seg[unidades];
-		PORTB = changesomebits(PORTB, 0b00000111, 0x01);} //desplegamos unidades
-	else if (mux == 0x01) 
+	PORTB = changesomebits(PORTB, 0b00000111, 0x01);} //desplegamos unidades
+	else if (mux == 0x01)
 	{PORTD = tabla7seg[decenas];
-		PORTB = changesomebits(PORTB, 0b00000111, 0x02);} //desplegamos decenas
-	else if (mux == 0x02) 
-	{PORTD = counter; 
+	PORTB = changesomebits(PORTB, 0b00000111, 0x02);} //desplegamos decenas
+	else if (mux == 0x02)
+	{PORTD = counter;
 	PORTB = changesomebits(PORTB, 0b00000111, 0x04);} //desplegamos el contador
 	
-	 if(debouncetimer != 0) {
-		 debouncetimer--; //Cambiamos el clock de debounce
-	 }
+	if(debouncetimer != 0) {
+		debouncetimer--; //Cambiamos el clock de debounce
+	}
 	
 	TIFR0 |= (1 << TOV0);
 	return;
@@ -137,5 +141,5 @@ ISR(TIMER0_OVF_vect){
 
 char changesomebits(char oldvalue, char bitstochange, char newvalue) //Funcion para solo cambiar algunos bits en un registro
 {	char result = (newvalue & bitstochange) | (oldvalue & ~bitstochange);
-	return result; 
+	return result;
 }
